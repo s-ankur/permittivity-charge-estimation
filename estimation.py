@@ -1,25 +1,3 @@
-import math
-import numpy as np
-from keras.models import Sequential
-from keras.layers import Dense
-from sklearn.model_selection import train_test_split
-from keras.layers import Dropout
-from sklearn import preprocessing
-
-epsilon_naught = 8.8541878e-12 #Fm^-1
-
-
-def coulomb_law(q1,q2,r,epsilon_r=1):
-    return q1*q2/(4*math.pi*epsilon_naught*epsilon_r*r*r)
-
-
-def force_due_to_dielectric(q1,q2,r,k_dielectric,r_dielectric):
-    epsilon_r_dielectric=1/k_dielectric 
-    if r < r_dielectric:
-        return coulomb_law(q1,q2,r,epsilon_r_dielectric)
-    else:
-        return coulomb_law(q1,q2,r,1)
-
 def get_model(input_dim=10,output_dim=2):
     model = Sequential()
     model.add(Dense(10, input_dim=input_dim, activation='relu'))
@@ -30,21 +8,7 @@ def get_model(input_dim=10,output_dim=2):
     model.compile(loss='mean_squared_error', optimizer='adam')
     return model
 
-scaler = preprocessing.StandardScaler()
-
-def gen_sample(q1,k_dielectric):
-    for q1_tmp in q1:
-        for k_dielectric_tmp in k_dielectric:
-            F=[]
-            for r_tmp in r:
-                F.append(force_due_to_dielectric(q1_tmp,q2,r_tmp,k_dielectric_tmp,r_dielectric))
-            F=np.array(F)
-            X.append(F)
-            y.append([q1_tmp,k_dielectric_tmp])
-    X=np.log(np.array(X))
-    y=np.array(y)
-    y=scaler.transform(y, norm='l1')
-    return X,y
+scaler = preprocessing.StandardScaler(with_mean=True,with_std=True)
 
 def get_dataset():
     r_dielectric = 2#m
@@ -54,9 +18,6 @@ def get_dataset():
     q1 = np.arange(start=1e-4,stop=1000e-4,step=1e-4)
     k_dielectric = np.arange(start=0.5,stop=1.5,step=.001) #units
 
-    q1_avg= np.mean(q1)
-    k_dielectric_avg = np.mean(k_dielectric)
-    
     X = []
     y=[]
     for q1_tmp in q1:
@@ -69,12 +30,12 @@ def get_dataset():
             y.append([q1_tmp,k_dielectric_tmp])
     X=np.log(np.array(X))
     y=np.array(y)
-    y=scaler.fit_transform(y)
-    return train_test_split( X, y, test_size=0.33, random_state=42)
+    return X,y
 
-if __name__=="__main__":
-    X_train, X_test, y_train, y_test, = get_dataset()
-    model = get_model(X_train.shape[-1],y_train.shape[-1])
-    model.fit(X_train,y_train,epochs=5)
-    c=model.predict(X_test)
-
+X,y= get_dataset()
+X_train, X_test, y_train, y_test,y_old_train,y_old_test =train_test_split( X, scaler.fit_transform(y),y,test_size=0.33, random_state=42)
+model = get_model(X_train.shape[-1],y_train.shape[-1])
+model.fit(X_train,y_train,epochs=5)
+y_pred=model.predict(X_test)
+print(y_old_test[0],scaler.inverse_transform(y_pred[0]))
+print(y_old_test[54],scaler.inverse_transform(y_pred[54]))
