@@ -30,6 +30,22 @@ def get_model(input_dim=10,output_dim=2):
     model.compile(loss='mean_squared_error', optimizer='adam')
     return model
 
+scaler = preprocessing.StandardScaler()
+
+def gen_sample(q1,k_dielectric):
+    for q1_tmp in q1:
+        for k_dielectric_tmp in k_dielectric:
+            F=[]
+            for r_tmp in r:
+                F.append(force_due_to_dielectric(q1_tmp,q2,r_tmp,k_dielectric_tmp,r_dielectric))
+            F=np.array(F)
+            X.append(F)
+            y.append([q1_tmp,k_dielectric_tmp])
+    X=np.log(np.array(X))
+    y=np.array(y)
+    y=scaler.transform(y, norm='l1')
+    return X,y
+
 def get_dataset():
     r_dielectric = 2#m
     q2 = 5e-4#C
@@ -53,13 +69,12 @@ def get_dataset():
             y.append([q1_tmp,k_dielectric_tmp])
     X=np.log(np.array(X))
     y=np.array(y)
-    y = preprocessing.normalize(y, norm='l1')
-
+    y=scaler.fit_transform(y)
     return train_test_split( X, y, test_size=0.33, random_state=42)
 
 if __name__=="__main__":
     X_train, X_test, y_train, y_test, = get_dataset()
     model = get_model(X_train.shape[-1],y_train.shape[-1])
-    model.fit(X_train,y_train,epochs=10)
+    model.fit(X_train,y_train,epochs=5)
     c=model.predict(X_test)
 
